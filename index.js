@@ -1,8 +1,11 @@
 const express = require('express')
 const app = express()
 
+require('dotenv').config()
 const morgan = require('morgan');
 const cors = require('cors')
+
+const Person = require('./models/person')
 
 //! oma custom token
 morgan.token('requestBody', (req, res) => { 
@@ -34,108 +37,133 @@ app.use(express.json())
 
 app.use(cors())
 
-let persons = [
-  { 
-    name: "Arto Hellas", 
-    number: "040-123456",
-    id: 1
-  },
-  { 
-    name: "Ada Lovelace", 
-    number: "39-44-5323523",
-    id: 2
-  },
-  { 
-    name: "Dan Abramov", 
-    number: "12-43-234345",
-    id: 3
-  },
-  { 
-    name: "Mary Poppendieck", 
-    number: "39-23-6423122",
-    id: 4
-  }
-
-]
-
 app.get('/info', (req, res) => {
-  res.send(`<p>Phonebook has info for ${persons.length} people.</p> <p>${new Date}</p>`);
-})
+  Person.find().estimatedDocumentCount().then(count => {
+    console.log('count is: ', count);
+    res.send(`<p>Phonebook has info for ${count} people.</p> <p>${new Date}</p>`);
+  })
+}) 
 
+//? tälle myös next erroreita varten?
 app.get('/api/persons', (req, res) => {
-  res.json(persons)
+  console.log('from getAll / 1');
+    Person.find({}).then(persons => {
+      console.log('from getAll / 2, find started');
+      res.json(persons)
+      console.log('from getAll / 3, find resolved, persons is: ', persons);
+  })
 })
 
-app.get('/api/persons/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const foundPerson = persons.find(person => person.id === id);
-
-  if (foundPerson) {
-    res.json(foundPerson);
-  } else {
-    res.status(200).end();
-  }
+app.get('/api/persons/:id', (req, res, next) => {
+  Person.findById(req.params.id)
+    .then(person => {
+    console.log('from getOne / 1, person is: ', person)
+    if (person) {
+      res.json(person)
+    } else {
+      res.status(404).end(); //! jos id ok mutta ei löydy (selaimessa: 'ei löydy')
+    }
+  })
+  .catch(error => next(error))
 })
 
+//? tälle myös next erroreita varten?
 app.post('/api/persons/', (req, res) => {
 
   const body = req.body;
 
   console.log('from app.post / 1, body is', body);
-  
+
   if (!body.name) {
     return res.status(400).json({
-      error: 'name is missing'
+      error: 'name is missing' //! ei tulostu konsoliin!
     })
   }
 
   if (!body.number) {
     return res.status(400).json({
-      error: 'number is missing'
+      error: 'number is missing'//! ei tulostu konsoliin!
     })
   }
 
+  /*
   //! jos ei löydy, arvoksi tulee undefined joka on falsy
   //! jos löytyy, arvoksi tulee löydetty olio joka on aina truthy
   const nameAlreadyExists = persons.find(person => person.name === body.name)
-
-  console.log('from app.post / 2, nameAlreadyExists is', nameAlreadyExists);
 
   if (nameAlreadyExists) {
     return res.status(201).json({
       error: `name ${body.name} is already in the phonebook`
     })
   }
+ */
 
-  const newPerson = {
+   //! Kurssimateriaalin malli:
+
+   const person = new Person({
+    name: body.name,
+    number: body.number
+  })
+
+  console.log('from app.post / 2, Person is', person);
+
+  person.save().then(savedPerson => {
+      console.log('from app.post / 4 / .then started')
+      res.json(savedPerson)
+      console.log('from app.post / 4 / .then resolved, savedPerson is: ', savedPerson)
+    })
+})
+
+//! fronttia voisi muokata mallivastauksen mukaan siten että
+//! nimi tulee olem. olevasta henkilöstä eikä kentästä
+app.put('/api/persons/:id', (req, res, next) => {
+  const body = req.body
+
+  console.log('from updateOne / 1, req.body is: ', req.body)
+
+  //! ei Person-kontruktorilla!
+  const person = {
     name: body.name,
     number: body.number,
-    id: Number(Math.random().toFixed(4)),
   }
 
-  console.log('from app.post / 3, newPerson is', newPerson);
-
-  persons = persons.concat(newPerson);
-  
-  console.log('from app.post / 4, persons is', persons);
-
-  res.json(newPerson);
-
+  Person.findByIdAndUpdate(req.params.id, person, { new: true })
+    .then(updatedPerson => {
+      console.log('from updateOne / 2, updatedPerson is: ', updatedPerson)
+      res.json(updatedPerson)
+    })
+    .catch(error => next(error))
 })
 
-app.delete('/api/persons/:id', (req, res) => {
-  const id = Number(req.params.id);
-  console.log('from app.delete / 1 id is ', id);
-  
-  persons = persons.filter(person => person.id !== id);
-
-  console.log('from app.delete / 2 persons is now', persons);
-
-
-  res.status(204).end();
-  
+app.delete('/api/persons/:id', (req, res, next) => {
+  console.log('from deleteOne / 1, req.params is: ', req.params)
+  Person.findByIdAndRemove(req.params.id)
+    .then(result => {
+      console.log('from deleteOne / 2 / .then, result is: ', result)
+      res.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
+//! jos ei löydy reittiä (lähinnä GET?)
+const unknownEndpoint = (req, res) => {
+  res.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
+
+const errorHandler = (err, req, res, next) => {
+  //! node-konsoliin oletusvirhe
+  console.error(err.message) 
+
+  if (err.name === 'CastError') { 
+    return res.status(400).send({ error: 'malformatted id' })
+  }
+  //! jos virhe ei ole CastError, virhe menee Expressin oletusvirheidenkäsittelijälle
+  next(error)
+}
+
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
