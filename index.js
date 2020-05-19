@@ -25,9 +25,10 @@ morgan((tokens, req, res) => {
 })
 
 //! määrätään järjestys jossa tokenien tiedot näytetään
-
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :requestBody')
 );
+
+app.use(express.static('build'))
 
 app.use(express.json())
 
