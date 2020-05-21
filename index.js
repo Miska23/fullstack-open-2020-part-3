@@ -2,15 +2,15 @@ const express = require('express')
 const app = express()
 
 require('dotenv').config()
-const morgan = require('morgan');
+const morgan = require('morgan')
 const cors = require('cors')
 
 const Person = require('./models/person')
 
 //! oma custom token
-morgan.token('requestBody', (req, res) => { 
+morgan.token('requestBody', (req, res) => {
   if (req.method === 'POST') {
-    return JSON.stringify(req.body) 
+    return JSON.stringify(req.body)
   } else {
     return '- request does not have a body'
   }
@@ -29,7 +29,7 @@ morgan((tokens, req, res) => {
 
 //! määrätään järjestys jossa tokenien tiedot näytetään
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :requestBody')
-);
+)
 
 app.use(express.static('build'))
 
@@ -39,18 +39,18 @@ app.use(cors())
 
 app.get('/info', (req, res) => {
   Person.find().estimatedDocumentCount().then(count => {
-    console.log('count is: ', count);
-    res.send(`<p>Phonebook has info for ${count} people.</p> <p>${new Date}</p>`);
+    console.log('count is: ', count)
+    res.send(`<p>Phonebook has info for ${count} people.</p> <p>${new Date}</p>`)
   })
-}) 
+})
 
 //? tälle myös next erroreita varten?
 app.get('/api/persons', (req, res) => {
-  console.log('from getAll / 1');
+  console.log('from getAll / 1')
     Person.find({}).then(persons => {
-      console.log('from getAll / 2, find started');
+      console.log('from getAll / 2, find started')
       res.json(persons)
-      console.log('from getAll / 3, find resolved, persons is: ', persons);
+      console.log('from getAll / 3, find resolved, persons is: ', persons)
   })
 })
 
@@ -61,7 +61,7 @@ app.get('/api/persons/:id', (req, res, next) => {
     if (person) {
       res.json(person)
     } else {
-      res.status(404).end(); //! jos id ok mutta ei löydy (selaimessa: 'ei löydy')
+      res.status(404).end()//! jos id ok mutta ei löydy (selaimessa: 'ei löydy')
     }
   })
   .catch(error => next(error))
@@ -69,8 +69,8 @@ app.get('/api/persons/:id', (req, res, next) => {
 
 app.post('/api/persons/', (req, res, next) => {
 
-  const body = req.body;
-  
+  const body = req.body
+
   const person = new Person({
     name: body.name,
     number: body.number
@@ -129,9 +129,9 @@ app.use(unknownEndpoint)
 
 const errorHandler = (err, req, res, next) => {
   //! node-konsoliin oletusvirhe
-  console.error(err.message) 
+  console.error(err.message)
 
-  if (err.name === 'CastError') { 
+  if (err.name === 'CastError') {
     return res.status(400).send({ err: 'malformatted id' })
   } else if (err.name === 'ValidationError') {
     return res.status(400).json({ err: err.message })

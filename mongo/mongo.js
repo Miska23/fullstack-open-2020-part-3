@@ -23,7 +23,7 @@ if (process.argv.length === 3) {
   Person
   .find({})
   .then(persons => {
-    console.log('Phonebook:');
+    console.log('Phonebook:')
     persons.map(p => console.log(p.name, p.number))
     mongoose.connection.close()
   })
@@ -36,7 +36,6 @@ if (process.argv.length === 5) {
     name: process.argv[3],
     number: process.argv[4],
   } */
-  
   new Person({
     name: process.argv[3],
     number: process.argv[4],
