@@ -3,5 +3,6 @@
 .env
 
 status.txt
+weatherstack.txt
 .eslintrc.js
 .eslintignore
